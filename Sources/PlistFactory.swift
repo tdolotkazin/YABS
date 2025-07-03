@@ -18,6 +18,22 @@ struct PlistFactoryImpl: PlistFactory {
         version: String,
         atPath: String
     ) throws {
-        fatalError("Not implemented: Part 1")
+        let data = try PropertyListEncoder().encode(InfoPlist(
+            CFBundleExecutable: executableName,
+            CFBundleIdentifier: bundleIdentifier,
+            CFBundleName: bundleName,
+            CFBundleShortVersionString: version,
+            CFBundleVersion: version
+        )
+        )
+        try data.write(to: URL(filePath: atPath))
     }
+}
+
+struct InfoPlist: Encodable {
+    let CFBundleExecutable: String
+    let CFBundleIdentifier: String
+    let CFBundleName: String
+    let CFBundleShortVersionString: String
+    let CFBundleVersion: String
 }

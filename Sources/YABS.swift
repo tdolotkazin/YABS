@@ -6,19 +6,22 @@ struct YABS {
     private let projectParser: ProjectParser
     private let folderManager: FolderManager
     private let plistFactory: PlistFactory
+    private let packageParser: PackageParser
 
     init(
         compiler: Compiler,
         logger: Logger,
         projectParser: ProjectParser,
         folderManager: FolderManager,
-        plistFactory: PlistFactory
+        plistFactory: PlistFactory,
+        packageParser: PackageParser
     ) {
         self.compiler = compiler
         self.logger = logger
         self.projectParser = projectParser
         self.folderManager = folderManager
         self.plistFactory = plistFactory
+        self.packageParser = packageParser
     }
 
     func build(projectPath: String) throws {
@@ -35,13 +38,31 @@ struct YABS {
         try? folderManager.deleteFolder(at: bundleDir)
         try folderManager.createFolder(at: bundleDir)
 
+        let packages = try project.localPackages.map { packagePath in
+            try packageParser.parse(packagePath: projectPath + "/" + packagePath)
+        }
+
+        var dependencies = packages.map { package in
+            package.name
+        }
+
+        try packages.forEach { package in
+            let nestedDependencies = try compilePackageRecursively(
+                package: package,
+                tempBuildDirectory: tempBuildDirectory
+            )
+            dependencies.append(contentsOf: nestedDependencies)
+        }
+
         // 4. Compile app binary
         let _ = try compiler.compileApp(
             sources: project.swiftFiles,
             metadata: Metadata(
                 name: project.name,
                 tempDir: tempBuildDirectory,
-                bundleDir: bundleDir
+                bundleDir: bundleDir,
+                staticLibrariesSearchPath: tempBuildDirectory,
+                staticLibraries: dependencies
             )
         )
 
@@ -53,6 +74,31 @@ struct YABS {
             version: "1.0",
             atPath: bundleDir + "/Info.plist"
         )
+    }
+
+    func compilePackageRecursively(
+        package: SwiftPackage,
+        tempBuildDirectory: String
+    ) throws -> [String] {
+        var dependencyNames: [String] = []
+        for dependency in package.dependencies {
+            dependencyNames = try compilePackageRecursively(
+                package: dependency,
+                tempBuildDirectory: tempBuildDirectory
+            )
+        }
+
+        _ = try compiler.compileLibrary(
+            sources: package.sources,
+            metadata: Metadata(
+                name: package.name,
+                tempDir: tempBuildDirectory,
+                bundleDir: tempBuildDirectory,
+                staticLibrariesSearchPath: tempBuildDirectory,
+                staticLibraries: dependencyNames
+            )
+        )
+        return [package.name] + dependencyNames
     }
 }
 
