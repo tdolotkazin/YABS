@@ -14,10 +14,12 @@ struct FolderManagerImpl: FolderManager {
     }
 
     func createFolder(at path: String) throws {
-        fatalError("Not implemented: Part 1")
+        try fileManager.createDirectory(atPath: path,
+                                                withIntermediateDirectories: true,
+                                                attributes: nil)
     }
     
     func deleteFolder(at path: String) throws {
-        fatalError("Not implemented: Part 1")
+        try fileManager.removeItem(atPath: path)
     }
 }

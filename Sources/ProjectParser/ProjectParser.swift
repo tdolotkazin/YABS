@@ -14,6 +14,14 @@ struct ProjectParserImpl: ProjectParser {
     }
 
     func parse(projectPath: String) throws -> Project {
-        fatalError("Not implemented: Part 1")
+        let data = try Data(contentsOf: URL(filePath: projectPath + "/project.json"))
+        let projectDto = try JSONDecoder().decode(ProjectDto.self, from: data)
+        let swiftFiles = try fileProvider.findFiles(at: projectPath + "/" + projectDto.sourcesFolder, withExtension: "swift")
+        return Project(
+            name: projectDto.name,
+            path: projectPath,
+            swiftFiles: swiftFiles,
+            localPackages: projectDto.localPackages
+        )
     }
 }

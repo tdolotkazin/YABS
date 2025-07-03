@@ -16,7 +16,8 @@ struct Build: ParsableCommand {
             logger: logger,
             projectParser: projectParser,
             folderManager: FolderManagerImpl(),
-            plistFactory: PlistFactoryImpl()
+            plistFactory: PlistFactoryImpl(),
+            packageParser: PackageParserImpl()
         )
 
         try yabs.build(projectPath: projectPath)

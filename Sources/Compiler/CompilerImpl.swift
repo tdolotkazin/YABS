@@ -5,7 +5,6 @@ enum CompilerError: Error {
 }
 
 struct CompilerImpl: Compiler {
-
     private let logger: Logger
     private let sdkPath = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
     private let target = "arm64-apple-ios18.0-simulator"
@@ -15,21 +14,42 @@ struct CompilerImpl: Compiler {
     }
     
     func compileApp(sources: [String], metadata: Metadata) throws {
-        
         let command = CompilerCommand(options: [
             .sourceFiles(sources),
             .target(target),
             .sdkPath(sdkPath),
             .emitExecutable,
+            .importsSearchPath(metadata.staticLibrariesSearchPath),
+            .linkLibraries(metadata.staticLibraries),
+            .librariesSearchPath(metadata.staticLibrariesSearchPath),
             .outputPath(metadata.bundleDir! + "/" + metadata.name)
         ])
-        
+        try run(command: command, moduleName: metadata.name)
+    }
+
+    func compileLibrary(sources: [String], metadata: Metadata) throws {
+        let command = CompilerCommand(options: [
+            .sourceFiles(sources),
+            .target(target),
+            .sdkPath(sdkPath),
+            .emitStaticLibrary,
+            .emitModule(metadata.name),
+            .importsSearchPath(metadata.staticLibrariesSearchPath),
+            .linkLibraries(metadata.staticLibraries),
+            .librariesSearchPath(metadata.staticLibrariesSearchPath),
+            .outputPath(metadata.tempDir + "/lib\(metadata.name).a")
+        ])
+
+        try run(command: command, moduleName: metadata.name)
+    }
+
+    private func run(command: CompilerCommand, moduleName: String) throws {
         logger.log(message: "Executing compilation command: \(command.resultCommand)")
-        
+
         let result = Shell.run(command.resultCommand)
-        
+
         if result.isSuccess {
-            logger.log(message: "Compilation successful: \(metadata.name)")
+            logger.log(message: "Compilation successful: \(moduleName)")
         } else {
             throw CompilerError.compilationFailed(result.error)
         }
